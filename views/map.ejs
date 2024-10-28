@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        #map {
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <script src="https://apis.mappls.com/advancedmaps/api/<%=API_KEY%>/map_sdk?v=3.0&layer=vector"></script>
+    <script src="https://cdn.socket.io/4.8.0/socket.io.min.js" integrity="sha384-OoIbkvzsFFQAG88r+IqMAjyOtYDPGO0cqK5HF5Uosdy/zUEGySeAzytENMDynREd" crossorigin="anonymous"></script>
+    <script>
+        const socket = io();
+        const markers = {};
+        const map = new mappls.Map('map', { zoom : 15 });
+        const marker = new mappls.Marker({
+            map: map,
+            icon : "https://cdn-icons-png.flaticon.com/128/5986/5986311.png",
+            width: 80,
+            height: 80,
+            position: {lat: 28.612964, lng: 77.229463}
+        });
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    console.log(position.coords);
+                    map.setCenter({lat: latitude,lng: longitude});
+                    marker.setPosition({lat:latitude,lng:longitude});
+                    // // Emit the location through the socket
+                    socket.emit("send-location", { latitude, longitude }, (error) => {
+                        if (error) {
+                            console.error("Location send error:", error);
+                        }
+                    });
+                },
+                (error) => {
+                    console.error("Geolocation error:", error);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0,
+                }
+            );
+        } else {
+            console.error("Geolocation is not supported by this browser.");
+        }
+
+        socket.on("receive-location", ({id, location})=>{
+            if(markers[id]){
+                markers[id].setPosition({lat:location.latitude,lng:location.longitude});
+            }else{
+                markers[id] = new mappls.addMarker({
+                    map: map,
+                    icon : "https://cdn-icons-png.flaticon.com/128/3242/3242257.png",
+                    width: 60,
+                    height: 60,
+                    position: {lat:location.latitude,lng:location.longitude}
+                });
+            }
+            console.log(id);
+        });
+
+    </script>
+</body>
+
+</html>
